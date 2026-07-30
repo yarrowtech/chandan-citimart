@@ -1,0 +1,923 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "CITIMART | July 2026 Net Sales Forecast Validation",
+    "description": "Out-of-sample review of daily actual net sales versus the CITIMART Random Forest forecast for July 1–27, 2026.",
+    "generatedAt": "2026-07-28T00:00:00+05:30",
+    "cards": [
+      {
+        "id": "actual_total_card",
+        "description": "Sum of supplied actual net sales for July 1–27.",
+        "dataset": "summary",
+        "sourceId": "july_reconciliation",
+        "metrics": [
+          {
+            "label": "Actual net sales (₹)",
+            "field": "actual_total",
+            "format": "compact"
+          }
+        ]
+      },
+      {
+        "id": "forecast_total_card",
+        "description": "Sum of reconstructed daily forecast values; variance is actual minus forecast.",
+        "dataset": "summary",
+        "sourceId": "july_reconciliation",
+        "metrics": [
+          {
+            "label": "Forecast net sales (₹)",
+            "field": "forecast_total",
+            "format": "compact"
+          },
+          {
+            "label": "Actual − forecast (₹)",
+            "field": "net_bias",
+            "format": "compact",
+            "signed": true
+          }
+        ]
+      },
+      {
+        "id": "wape_card",
+        "description": "Sum of absolute daily errors divided by total actual net sales.",
+        "dataset": "summary",
+        "sourceId": "july_reconciliation",
+        "metrics": [
+          {
+            "label": "July WAPE",
+            "field": "wape",
+            "format": "percent"
+          },
+          {
+            "label": "Historical holdout WAPE",
+            "field": "holdout_wape",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "mae_card",
+        "description": "Average absolute daily forecast error.",
+        "dataset": "summary",
+        "sourceId": "july_reconciliation",
+        "metrics": [
+          {
+            "label": "Daily MAE (₹)",
+            "field": "mae",
+            "format": "compact"
+          },
+          {
+            "label": "Historical holdout MAE (₹)",
+            "field": "holdout_mae",
+            "format": "compact"
+          }
+        ]
+      },
+      {
+        "id": "bias_card",
+        "description": "Positive means total actual sales exceeded the total forecast.",
+        "dataset": "summary",
+        "sourceId": "july_reconciliation",
+        "metrics": [
+          {
+            "label": "Net underforecast (₹)",
+            "field": "net_bias",
+            "format": "compact",
+            "signed": true
+          },
+          {
+            "label": "Bias versus actual",
+            "field": "bias_rate",
+            "format": "percent",
+            "signed": true
+          }
+        ]
+      },
+      {
+        "id": "r2_card",
+        "description": "Share of July daily variation explained by the forecast.",
+        "dataset": "summary",
+        "sourceId": "july_reconciliation",
+        "metrics": [
+          {
+            "label": "July R²",
+            "field": "r_squared",
+            "format": "number"
+          },
+          {
+            "label": "Historical holdout R²",
+            "field": "holdout_r_squared",
+            "format": "number"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "actual_forecast_chart",
+        "title": "Daily net sales: actual and forecast",
+        "subtitle": "July 1–27, 2026",
+        "type": "line",
+        "dataset": "daily",
+        "sourceId": "july_reconciliation",
+        "valueFormat": "compact",
+        "unit": "₹",
+        "encodings": {
+          "x": {
+            "field": "date",
+            "type": "temporal",
+            "label": "Date"
+          },
+          "y": {
+            "fields": [
+              "actual_net_sales",
+              "implied_forecast"
+            ],
+            "type": "quantitative",
+            "label": "Net sales",
+            "format": "compact",
+            "unit": "₹"
+          },
+          "tooltip": [
+            {
+              "field": "residual",
+              "type": "quantitative",
+              "label": "Actual − forecast",
+              "format": "number",
+              "unit": "₹"
+            },
+            {
+              "field": "ape",
+              "type": "quantitative",
+              "label": "Absolute % error",
+              "format": "percent"
+            }
+          ]
+        },
+        "options": {
+          "points": "auto",
+          "multi_measure_series": true
+        },
+        "layout": "full"
+      },
+      {
+        "id": "weekly_bias_chart",
+        "title": "Weekly signed forecast variance",
+        "subtitle": "Positive: actual above forecast; negative: actual below forecast",
+        "type": "bar",
+        "dataset": "weekly",
+        "sourceId": "july_reconciliation",
+        "valueFormat": "compact",
+        "unit": "₹",
+        "encodings": {
+          "x": {
+            "field": "period",
+            "type": "ordinal",
+            "label": "July period"
+          },
+          "y": {
+            "field": "signed_variance",
+            "type": "quantitative",
+            "label": "Actual − forecast",
+            "format": "compact",
+            "unit": "₹"
+          },
+          "tooltip": [
+            {
+              "field": "wape",
+              "type": "quantitative",
+              "label": "WAPE",
+              "format": "percent"
+            }
+          ]
+        },
+        "referenceLines": [
+          {
+            "value": 0,
+            "label": "Forecast matched actual"
+          }
+        ],
+        "layout": "full"
+      }
+    ],
+    "tables": [
+      {
+        "id": "model_validation_table",
+        "title": "Forecast model validation",
+        "subtitle": "Chronological holdout candidates and the applied model's July performance",
+        "dataset": "model_validation",
+        "sourceId": "model_validation_output",
+        "density": "compact",
+        "defaultSort": {
+          "field": "sort_order",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "evaluation_window",
+            "label": "Evaluation window",
+            "type": "text"
+          },
+          {
+            "field": "model",
+            "label": "Model",
+            "type": "text"
+          },
+          {
+            "field": "selected",
+            "label": "Status",
+            "type": "text"
+          },
+          {
+            "field": "mae",
+            "label": "MAE",
+            "format": "number",
+            "unit": "₹",
+            "align": "right"
+          },
+          {
+            "field": "rmse",
+            "label": "RMSE",
+            "format": "number",
+            "unit": "₹",
+            "align": "right"
+          },
+          {
+            "field": "mape",
+            "label": "MAPE",
+            "format": "percent",
+            "align": "right"
+          },
+          {
+            "field": "wape",
+            "label": "WAPE",
+            "format": "percent",
+            "align": "right"
+          },
+          {
+            "field": "r_squared",
+            "label": "R²",
+            "format": "number",
+            "align": "right"
+          }
+        ]
+      },
+      {
+        "id": "daily_audit_table",
+        "title": "Daily reconciliation",
+        "subtitle": "Exact supplied actuals and residuals; forecast = actual − residual",
+        "dataset": "daily",
+        "sourceId": "july_reconciliation",
+        "density": "compact",
+        "defaultSort": {
+          "field": "date",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "date",
+            "label": "Date",
+            "type": "date"
+          },
+          {
+            "field": "weekday",
+            "label": "Day",
+            "type": "text"
+          },
+          {
+            "field": "actual_net_sales",
+            "label": "Actual",
+            "format": "number",
+            "unit": "₹",
+            "align": "right"
+          },
+          {
+            "field": "implied_forecast",
+            "label": "Forecast",
+            "format": "number",
+            "unit": "₹",
+            "align": "right"
+          },
+          {
+            "field": "residual",
+            "label": "Actual − forecast",
+            "format": "number",
+            "unit": "₹",
+            "movement": true,
+            "align": "right"
+          },
+          {
+            "field": "ape",
+            "label": "Abs. % error",
+            "format": "percent",
+            "align": "right"
+          },
+          {
+            "field": "direction",
+            "label": "Forecast direction",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "july_reconciliation",
+        "label": "July 2026 daily reconciliation (user actuals/residuals checked against the app forecast)",
+        "path": "reports/july_2026_forecast_validation/daily_reconciliation.csv"
+      },
+      {
+        "id": "model_validation_output",
+        "label": "Forecast candidate validation and July out-of-sample accuracy",
+        "path": "reports/july_2026_forecast_validation/model_validation.csv"
+      },
+      {
+        "id": "historical_workbook",
+        "label": "CITIMART historical training workbook",
+        "path": "salesdata_updated.xlsx"
+      },
+      {
+        "id": "forecast_implementation",
+        "label": "CITIMART forecasting implementation",
+        "path": "src/forecasting.py"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "sourceId": "july_reconciliation",
+        "body": "## Executive summary\n\n- **The figures reconcile correctly.** Treating each supplied residual as `actual − forecast`, the reconstructed daily forecasts match the app's Random Forest output within **₹0.50 per day**; the difference is only rounding.\n- **Overall July performance is good, but not yet planning-grade at the daily level.** For July 1–27, actual net sales were **₹14.25M** against **₹13.93M** forecast. WAPE was **12.65%**, MAE was **₹66.77k**, and R² was **0.78**.\n- **The central issue is a mid-month level shift.** July 1–12 was underforecast by **₹900.63k**, while July 13–27 was overforecast by **₹571.47k**. The model captured the broad weekly sales rhythm but could not update after the July actuals moved to a lower level.\n- **Use the forecast as a directional baseline with an operating tolerance.** Fourteen of 27 days were within 10% and 22 were within 20%; five days exceeded 25% absolute error."
+      },
+      {
+        "id": "headline_metrics",
+        "type": "metric-strip",
+        "cardIds": [
+          "actual_total_card",
+          "forecast_total_card",
+          "wape_card",
+          "mae_card",
+          "bias_card",
+          "r2_card"
+        ]
+      },
+      {
+        "id": "accuracy_finding",
+        "type": "markdown",
+        "sourceId": "july_reconciliation",
+        "body": "## Overall accuracy and fit\n\nThe total forecast was only **₹329.16k below actual**, a **2.31%** net miss. That small total bias should not be confused with small daily errors: positive and negative misses partly cancelled, while absolute error still totalled **₹1.80M**. The **0.90 actual-versus-forecast correlation** and **0.78 R²** show that the model followed much of the daily pattern, including stronger weekends, but it smoothed some peaks and did not adapt to the later-month slowdown."
+      },
+      {
+        "id": "actual_forecast_visual",
+        "type": "chart",
+        "chartId": "actual_forecast_chart"
+      },
+      {
+        "id": "error_pattern_finding",
+        "type": "markdown",
+        "sourceId": "july_reconciliation",
+        "body": "## Error pattern and exceptions\n\nThe error direction changed materially after July 12. In the first 12 days, **10 of 12** were underforecast; in the following 15 days, **12 of 15** were overforecast. Weekly signed variance moved from **+₹507.33k** and **+₹397.01k** in the first two periods to **−₹397.56k** and **−₹177.62k** in the final two periods. This is evidence of a level shift rather than a stable one-sided bias.\n\nThe largest percentage misses were July 20 (**46.68% overforecast**), July 24 (**38.09% overforecast**), July 16 (**33.87% overforecast**), July 27 (**29.92% overforecast**), and July 1 (**27.94% underforecast**). The two largest actual-sales peaks—July 12 at **₹974.17k** and July 5 at **₹916.87k**—were both underforecast, so peak-demand coverage remains the main inventory and staffing risk."
+      },
+      {
+        "id": "weekly_bias_visual",
+        "type": "chart",
+        "chartId": "weekly_bias_chart"
+      },
+      {
+        "id": "model_finding",
+        "type": "markdown",
+        "sourceId": "model_validation_output",
+        "body": "## Model selection and benchmark\n\nThe app selected **Random Forest Regressor** because it had the lowest chronological holdout RMSE among the five candidates. On that holdout it recorded **17.27% WAPE**, **₹94.60k MAE**, and **0.49 R²**. July's out-of-sample results were better—**12.65% WAPE**, **₹66.77k MAE**, and **0.78 R²**—but the windows differ, so this should be read as encouraging evidence rather than proof of a permanent improvement."
+      },
+      {
+        "id": "model_validation_visual",
+        "type": "table",
+        "tableId": "model_validation_table"
+      },
+      {
+        "id": "operating_recommendations",
+        "type": "markdown",
+        "sourceId": "july_reconciliation",
+        "body": "## Recommended operating remarks\n\n1. **Keep the current Random Forest as the baseline model.** It outperformed the available alternatives in chronological validation and reproduced the supplied forecast values correctly.\n2. **Refresh the forecast with actuals at least weekly.** A fixed 27-day recursive forecast could not respond to the mid-month change. Reforecasting after July 7 and July 14 would reduce exposure to persistent level shifts.\n3. **Use forecast ranges for daily decisions.** For normal staffing and inventory, plan around roughly **±20%** of the point forecast; 22 of 27 days fell inside that band. Use a wider exception process for Mondays and event/promotion days.\n4. **Create peak-day overrides.** Sundays and other high-volume dates were generally tracked directionally but peak values were understated. Add promotion, holiday, payday, stock availability, and local-event features before using the forecast for replenishment commitments.\n5. **Monitor bias separately from absolute accuracy.** A small monthly net bias can hide large offsetting daily errors. The operating scorecard should show WAPE/MAE together with signed bias and the count of days outside 20%."
+      },
+      {
+        "id": "daily_detail_intro",
+        "type": "markdown",
+        "sourceId": "july_reconciliation",
+        "body": "## Daily audit detail\n\nThe table below preserves the supplied values exactly. Positive residuals mean actual sales exceeded forecast (underforecast); negative residuals mean the forecast exceeded actual sales (overforecast)."
+      },
+      {
+        "id": "daily_detail_visual",
+        "type": "table",
+        "tableId": "daily_audit_table"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Further questions to investigate\n\n- Were promotions, holidays, stock-outs, store closures, or unusual weather present on July 1, 16, 20, 24, or 27?\n- Did store mix, section, department, or division mix change after July 12?\n- Would store-level forecasts aggregated to the total outperform a single all-store daily model?\n- How much accuracy improves when actual July values are fed back through weekly rolling retraining?"
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "body": "## Caveats and assumptions\n\n- The 27 supplied rows are assumed to correspond in order to **July 1–27, 2026**.\n- `Original − forecast` is treated as **actual net sales minus forecast**. Forecast values in the audit table are reconstructed as `actual − residual`.\n- The historical workbook ends on **June 30, 2026**, so these July values are out-of-sample.\n- The app's interval is a fixed **±1.96 × holdout RMSE** band. All 27 actuals fall inside it, but that band is wide and is not a calibrated probabilistic interval.\n- Daily values supplied as whole rupees introduce tiny rounding differences; the maximum difference from the app's unrounded forecast is below **₹0.50 per day**."
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-07-28T00:00:00+05:30",
+    "status": "ready",
+    "datasets": {
+      "summary": [
+        {
+          "actual_total": 14254874,
+          "forecast_total": 13925715,
+          "net_bias": 329159,
+          "bias_rate": 0.023091,
+          "mae": 66767.3,
+          "rmse": 82729.59,
+          "mape": 0.135375,
+          "wape": 0.126463,
+          "r_squared": 0.780461,
+          "correlation": 0.899694,
+          "holdout_mae": 94597.54,
+          "holdout_wape": 0.172656,
+          "holdout_r_squared": 0.490001,
+          "underforecast_days": 13,
+          "overforecast_days": 14,
+          "within_10_percent_days": 14,
+          "within_20_percent_days": 22,
+          "over_25_percent_days": 5
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-07-01",
+          "weekday": "Wednesday",
+          "actual_net_sales": 629716,
+          "residual": 175952,
+          "implied_forecast": 453764,
+          "absolute_error": 175952,
+          "ape": 0.2794,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 01-07"
+        },
+        {
+          "date": "2026-07-02",
+          "weekday": "Thursday",
+          "actual_net_sales": 475608,
+          "residual": 34855,
+          "implied_forecast": 440753,
+          "absolute_error": 34855,
+          "ape": 0.0733,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 01-07"
+        },
+        {
+          "date": "2026-07-03",
+          "weekday": "Friday",
+          "actual_net_sales": 496540,
+          "residual": -3673,
+          "implied_forecast": 500213,
+          "absolute_error": 3673,
+          "ape": 0.0074,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 01-07"
+        },
+        {
+          "date": "2026-07-04",
+          "weekday": "Saturday",
+          "actual_net_sales": 753554,
+          "residual": 91742,
+          "implied_forecast": 661812,
+          "absolute_error": 91742,
+          "ape": 0.1217,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 01-07"
+        },
+        {
+          "date": "2026-07-05",
+          "weekday": "Sunday",
+          "actual_net_sales": 916867,
+          "residual": 91595,
+          "implied_forecast": 825272,
+          "absolute_error": 91595,
+          "ape": 0.0999,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 01-07"
+        },
+        {
+          "date": "2026-07-06",
+          "weekday": "Monday",
+          "actual_net_sales": 496032,
+          "residual": 65849,
+          "implied_forecast": 430183,
+          "absolute_error": 65849,
+          "ape": 0.1328,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 01-07"
+        },
+        {
+          "date": "2026-07-07",
+          "weekday": "Tuesday",
+          "actual_net_sales": 453087,
+          "residual": 51007,
+          "implied_forecast": 402080,
+          "absolute_error": 51007,
+          "ape": 0.1126,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 01-07"
+        },
+        {
+          "date": "2026-07-08",
+          "weekday": "Wednesday",
+          "actual_net_sales": 502402,
+          "residual": 96422,
+          "implied_forecast": 405980,
+          "absolute_error": 96422,
+          "ape": 0.1919,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 08-14"
+        },
+        {
+          "date": "2026-07-09",
+          "weekday": "Thursday",
+          "actual_net_sales": 446163,
+          "residual": 27067,
+          "implied_forecast": 419096,
+          "absolute_error": 27067,
+          "ape": 0.0607,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 08-14"
+        },
+        {
+          "date": "2026-07-10",
+          "weekday": "Friday",
+          "actual_net_sales": 446765,
+          "residual": -17963,
+          "implied_forecast": 464728,
+          "absolute_error": 17963,
+          "ape": 0.0402,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 08-14"
+        },
+        {
+          "date": "2026-07-11",
+          "weekday": "Saturday",
+          "actual_net_sales": 747752,
+          "residual": 139264,
+          "implied_forecast": 608488,
+          "absolute_error": 139264,
+          "ape": 0.1862,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 08-14"
+        },
+        {
+          "date": "2026-07-12",
+          "weekday": "Sunday",
+          "actual_net_sales": 974170,
+          "residual": 148513,
+          "implied_forecast": 825657,
+          "absolute_error": 148513,
+          "ape": 0.1525,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 08-14"
+        },
+        {
+          "date": "2026-07-13",
+          "weekday": "Monday",
+          "actual_net_sales": 410323,
+          "residual": -19266,
+          "implied_forecast": 429589,
+          "absolute_error": 19266,
+          "ape": 0.047,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 08-14"
+        },
+        {
+          "date": "2026-07-14",
+          "weekday": "Tuesday",
+          "actual_net_sales": 433674,
+          "residual": 22975,
+          "implied_forecast": 410699,
+          "absolute_error": 22975,
+          "ape": 0.053,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 08-14"
+        },
+        {
+          "date": "2026-07-15",
+          "weekday": "Wednesday",
+          "actual_net_sales": 411565,
+          "residual": -19201,
+          "implied_forecast": 430766,
+          "absolute_error": 19201,
+          "ape": 0.0467,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 15-21"
+        },
+        {
+          "date": "2026-07-16",
+          "weekday": "Thursday",
+          "actual_net_sales": 352637,
+          "residual": -119448,
+          "implied_forecast": 472085,
+          "absolute_error": 119448,
+          "ape": 0.3387,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 15-21"
+        },
+        {
+          "date": "2026-07-17",
+          "weekday": "Friday",
+          "actual_net_sales": 433431,
+          "residual": -25615,
+          "implied_forecast": 459046,
+          "absolute_error": 25615,
+          "ape": 0.0591,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 15-21"
+        },
+        {
+          "date": "2026-07-18",
+          "weekday": "Saturday",
+          "actual_net_sales": 561076,
+          "residual": -7565,
+          "implied_forecast": 568641,
+          "absolute_error": 7565,
+          "ape": 0.0135,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 15-21"
+        },
+        {
+          "date": "2026-07-19",
+          "weekday": "Sunday",
+          "actual_net_sales": 694553,
+          "residual": -69822,
+          "implied_forecast": 764375,
+          "absolute_error": 69822,
+          "ape": 0.1005,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 15-21"
+        },
+        {
+          "date": "2026-07-20",
+          "weekday": "Monday",
+          "actual_net_sales": 294572,
+          "residual": -137511,
+          "implied_forecast": 432083,
+          "absolute_error": 137511,
+          "ape": 0.4668,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 15-21"
+        },
+        {
+          "date": "2026-07-21",
+          "weekday": "Tuesday",
+          "actual_net_sales": 431320,
+          "residual": -18400,
+          "implied_forecast": 449720,
+          "absolute_error": 18400,
+          "ape": 0.0427,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 15-21"
+        },
+        {
+          "date": "2026-07-22",
+          "weekday": "Wednesday",
+          "actual_net_sales": 443526,
+          "residual": 40383,
+          "implied_forecast": 403143,
+          "absolute_error": 40383,
+          "ape": 0.091,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 22-27"
+        },
+        {
+          "date": "2026-07-23",
+          "weekday": "Thursday",
+          "actual_net_sales": 409010,
+          "residual": -47339,
+          "implied_forecast": 456349,
+          "absolute_error": 47339,
+          "ape": 0.1157,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 22-27"
+        },
+        {
+          "date": "2026-07-24",
+          "weekday": "Friday",
+          "actual_net_sales": 314267,
+          "residual": -119708,
+          "implied_forecast": 433975,
+          "absolute_error": 119708,
+          "ape": 0.3809,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 22-27"
+        },
+        {
+          "date": "2026-07-25",
+          "weekday": "Saturday",
+          "actual_net_sales": 535976,
+          "residual": -24289,
+          "implied_forecast": 560265,
+          "absolute_error": 24289,
+          "ape": 0.0453,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 22-27"
+        },
+        {
+          "date": "2026-07-26",
+          "weekday": "Sunday",
+          "actual_net_sales": 832728,
+          "residual": 80314,
+          "implied_forecast": 752414,
+          "absolute_error": 80314,
+          "ape": 0.0964,
+          "direction": "Underforecast",
+          "week_bucket": "Jul 22-27"
+        },
+        {
+          "date": "2026-07-27",
+          "weekday": "Monday",
+          "actual_net_sales": 357560,
+          "residual": -106979,
+          "implied_forecast": 464539,
+          "absolute_error": 106979,
+          "ape": 0.2992,
+          "direction": "Overforecast",
+          "week_bucket": "Jul 22-27"
+        }
+      ],
+      "weekly": [
+        {
+          "period": "Jul 01-07",
+          "days": 7,
+          "actual_total": 4221404,
+          "forecast_total": 3714078,
+          "signed_variance": 507326,
+          "wape": 0.1219
+        },
+        {
+          "period": "Jul 08-14",
+          "days": 7,
+          "actual_total": 3961249,
+          "forecast_total": 3564237,
+          "signed_variance": 397012,
+          "wape": 0.119
+        },
+        {
+          "period": "Jul 15-21",
+          "days": 7,
+          "actual_total": 3179154,
+          "forecast_total": 3576716,
+          "signed_variance": -397562,
+          "wape": 0.1251
+        },
+        {
+          "period": "Jul 22-27",
+          "days": 6,
+          "actual_total": 2893067,
+          "forecast_total": 3070684,
+          "signed_variance": -177617,
+          "wape": 0.1448
+        }
+      ],
+      "model_validation": [
+        {
+          "sort_order": 1,
+          "evaluation_window": "Historical chronological holdout",
+          "model": "Random Forest Regressor",
+          "selected": "Selected",
+          "mae": 94597.54,
+          "rmse": 119421.21,
+          "mape": 0.194102,
+          "wape": 0.172656,
+          "r_squared": 0.490001
+        },
+        {
+          "sort_order": 2,
+          "evaluation_window": "Historical chronological holdout",
+          "model": "Ridge Regression",
+          "selected": "Candidate",
+          "mae": 100606.15,
+          "rmse": 129155.5,
+          "mape": 0.21859,
+          "wape": 0.183623,
+          "r_squared": 0.40347
+        },
+        {
+          "sort_order": 3,
+          "evaluation_window": "Historical chronological holdout",
+          "model": "HistGradientBoosting Regressor",
+          "selected": "Candidate",
+          "mae": 110750.58,
+          "rmse": 137081.23,
+          "mape": 0.228939,
+          "wape": 0.202138,
+          "r_squared": 0.32801
+        },
+        {
+          "sort_order": 4,
+          "evaluation_window": "Historical chronological holdout",
+          "model": "Seasonal Naive (7-period)",
+          "selected": "Candidate",
+          "mae": 106097.76,
+          "rmse": 143571.57,
+          "mape": 0.205348,
+          "wape": 0.193646,
+          "r_squared": 0.262871
+        },
+        {
+          "sort_order": 5,
+          "evaluation_window": "Historical chronological holdout",
+          "model": "Moving Average (7-period)",
+          "selected": "Candidate",
+          "mae": 144039.17,
+          "rmse": 169872.92,
+          "mape": 0.28648,
+          "wape": 0.262895,
+          "r_squared": -0.031941
+        },
+        {
+          "sort_order": 6,
+          "evaluation_window": "July 01-27 out-of-sample",
+          "model": "Random Forest Regressor",
+          "selected": "Applied",
+          "mae": 66767.3,
+          "rmse": 82729.59,
+          "mape": 0.135375,
+          "wape": 0.126463,
+          "r_squared": 0.780461
+        }
+      ]
+    },
+    "accessIssues": []
+  },
+  "sources": [
+    {
+      "id": "july_reconciliation",
+      "label": "July 2026 forecast reconciliation",
+      "path": "reports/july_2026_forecast_validation/daily_reconciliation.csv",
+      "query": {
+        "engine": "local-analysis",
+        "description": "Reconstructs forecast as actual net sales minus the supplied residual and checks the result against the app's unrounded Random Forest forecast.",
+        "language": "Python",
+        "executed_at": "2026-07-28T00:00:00+05:30",
+        "tables_used": [
+          "salesdata_updated.xlsx",
+          "reports/july_2026_forecast_validation/daily_reconciliation.csv"
+        ],
+        "filters": [
+          "Daily observations from July 1 through July 27, 2026",
+          "All-store daily net sales",
+          "No supplied July rows excluded"
+        ],
+        "metric_definitions": [
+          "Implied forecast = actual net sales − supplied (actual − forecast) residual.",
+          "Signed error/bias = actual net sales − forecast; positive means underforecast.",
+          "MAE = mean absolute daily error.",
+          "RMSE = square root of mean squared daily error.",
+          "MAPE = mean of absolute daily error divided by daily actual net sales.",
+          "WAPE = sum of absolute daily errors divided by sum of daily actual net sales.",
+          "R² = 1 − sum squared error / total sum of squares around mean actual sales."
+        ]
+      }
+    },
+    {
+      "id": "model_validation_output",
+      "label": "Forecast model validation output",
+      "path": "reports/july_2026_forecast_validation/model_validation.csv",
+      "query": {
+        "engine": "local-analysis",
+        "description": "Chronological holdout comparison generated by the CITIMART forecasting pipeline, plus July 1–27 out-of-sample metrics.",
+        "language": "Python",
+        "executed_at": "2026-07-28T00:00:00+05:30",
+        "tables_used": [
+          "salesdata_updated.xlsx",
+          "src/forecasting.py",
+          "reports/july_2026_forecast_validation/model_validation.csv"
+        ],
+        "filters": [
+          "Historical workbook data through June 30, 2026",
+          "Chronological validation split",
+          "Forecast horizon of 27 days for July 1–27, 2026"
+        ],
+        "metric_definitions": [
+          "The selected model is the candidate with the lowest chronological holdout RMSE.",
+          "July metrics use the exact supplied actuals and residual-reconstructed forecasts.",
+          "MAPE and WAPE are stored as fractional rates for display."
+        ]
+      }
+    }
+  ],
+  "package_info": {
+    "originUrl": "artifact://citimart-july-2026-forecast-validation",
+    "controls": {
+      "edit": false,
+      "refresh": false
+    }
+  }
+}

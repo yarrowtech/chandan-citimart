@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.streamlit/secrets.toml
+reports/*.pdf
+reports/*.png
+*.log
+.DS_Store
+CITIMART SALES KPI.code-workspace
+requirment.txt
+.claude
+

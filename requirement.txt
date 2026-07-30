@@ -1,0 +1,2 @@
+# Compatibility filename requested in the acceptance criteria.
+-r requirements.txt

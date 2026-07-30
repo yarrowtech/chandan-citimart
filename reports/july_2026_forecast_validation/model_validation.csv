@@ -1,0 +1,7 @@
+evaluation_window,model,selected,observations,mae,rmse,mape_percent,wape_percent,r_squared
+Historical chronological holdout,Random Forest Regressor,Yes,,94597.54,119421.21,19.41,17.27,0.490
+Historical chronological holdout,Ridge Regression,No,,100606.15,129155.50,21.86,18.36,0.403
+Historical chronological holdout,HistGradientBoosting Regressor,No,,110750.58,137081.23,22.89,20.21,0.328
+Historical chronological holdout,Seasonal Naive (7-period),No,,106097.76,143571.57,20.53,19.36,0.263
+Historical chronological holdout,Moving Average (7-period),No,,144039.17,169872.92,28.65,26.29,-0.032
+July 01-27 out-of-sample,Random Forest Regressor,Applied,27,66767.30,82729.59,13.54,12.65,0.780
