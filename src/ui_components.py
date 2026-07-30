@@ -66,6 +66,7 @@ def apply_theme() -> None:
             letter-spacing: .04em;
         }
         .kpi-status .status-dot { width: 8px; height: 8px; margin-right: 0; }
+        .kpi-estimated-tag { color: #B5790B; font-weight: 650; text-transform: none; letter-spacing: 0; }
         .kpi-progress {
             height: 4px; border-radius: 999px; background: #E7EDF1;
             overflow: hidden; margin-top: 4px;
@@ -184,6 +185,11 @@ def kpi_card_html(
             f'<span style="width:{progress:.1f}%"></span></div>'
         )
     source = escape(source_text)
+    estimated_tag = (
+        ' <span class="kpi-estimated-tag">· Estimated</span>'
+        if payload.get("estimated")
+        else ""
+    )
     return (
         f'<div class="kpi-card" data-status="{status_key}" title="{source}" '
         f'tabindex="0" role="group" aria-label="{escape(label)}: {escape(str(rendered))}">'
@@ -194,7 +200,8 @@ def kpi_card_html(
         f'<div class="kpi-formula"><strong>Formula:</strong> {formula}</div>'
         '<div class="kpi-status">'
         f'<span class="status-dot {status_class}" '
-        f'aria-label="{escape(status)}"></span> {escape(status)}</div></div>'
+        f'aria-label="{escape(status)}"></span> {escape(status)}'
+        f"{estimated_tag}</div></div>"
     )
 
 

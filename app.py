@@ -55,6 +55,7 @@ kpi_engine = importlib.reload(kpi_engine)
 calculate_kpis = kpi_engine.calculate_kpis
 kpi_table = kpi_engine.kpi_table
 safe_divide = kpi_engine.safe_divide
+prorate_daily_by_hierarchy_share = kpi_engine.prorate_daily_by_hierarchy_share
 formatting = importlib.reload(formatting)
 currency = formatting.currency
 dashboard_table = formatting.dashboard_table
@@ -518,6 +519,15 @@ hierarchy_filtered = (
     division_filtered or section_filtered or department_filtered
 )
 filtered_sales = filtered_detail if hierarchy_filtered else filtered_daily
+# Footfall/NOB/target are never captured per division/section/department, so
+# under a hierarchy filter they are estimated by prorating each store-day's
+# totals by this selection's share of that day's net sales. Net/gross sales
+# on this frame stay exact. See kpi_engine.prorate_daily_by_hierarchy_share.
+estimated_daily = (
+    prorate_daily_by_hierarchy_share(filtered_daily, filtered_detail)
+    if hierarchy_filtered
+    else filtered_daily
+)
 
 period_start = pd.Timestamp(start_date)
 period_end = pd.Timestamp(end_date)
@@ -637,8 +647,8 @@ sales_figure, sales_table = sales_by_period(filtered_sales, granularity)
 monthly_figure, monthly_table = monthly_sales(filtered_sales)
 division_figure, division_table = hierarchy_chart(filtered_detail, "division")
 scorecard_table = store_scorecard(
-    filtered_sales,
-    sales_only=hierarchy_filtered,
+    estimated_daily,
+    sales_only=False,
     color_rules=data.kpi_color_rules,
 )
 if forecast_result:
@@ -713,13 +723,8 @@ with filter_column:
                 if not report_daily_table.empty:
                     figures.append(("Daily Sales Trend", report_daily_figure))
 
-                report_target_source = (
-                    filtered_daily
-                    if not hierarchy_filtered
-                    else filtered_daily.iloc[0:0]
-                )
                 report_target_figure, report_target_table = target_achievement(
-                    report_target_source,
+                    estimated_daily,
                     data.kpi_color_rules.get("achievement"),
                 )
                 if not report_target_table.empty:
@@ -730,11 +735,7 @@ with filter_column:
                         )
                     )
 
-                report_customer_source = (
-                    filtered_daily
-                    if not hierarchy_filtered
-                    else filtered_daily.iloc[0:0]
-                )
+                report_customer_source = estimated_daily
                 report_foot_figure, report_customer_table = (
                     footfall_bills_chart(report_customer_source)
                 )
@@ -836,14 +837,18 @@ with main_column:
             st.warning(
                 "Division/section/department filters are active. Sales views use the filtered "
                 f"detail fact; the forecast uses the uploaded workbook{filter_message} "
-                "Operational KPI cards are hidden because store-day measures cannot be "
-                "attributed safely to hierarchy rows."
+                "Net/gross sales are exact. Operational KPI cards (Footfall, NOB, ATV, RPV, "
+                "Basket Size, Conversion, Achievement, Target, Units) are marked 'Estimated' "
+                "because store-day measures are prorated by this selection's net-sales share, "
+                "not measured directly."
             )
         else:
             st.warning(
                 "Division/section/department filters are active. All sales views and the "
-                "forecast use the filtered detail fact. Operational KPI cards are hidden "
-                "because store-day measures cannot be attributed safely to hierarchy rows."
+                "forecast use the filtered detail fact. Net/gross sales are exact. "
+                "Operational KPI cards (Footfall, NOB, ATV, RPV, Basket Size, Conversion, "
+                "Achievement, Target, Units) are marked 'Estimated' because store-day measures "
+                "are prorated by this selection's net-sales share, not measured directly."
             )
     for warning in data.warnings[:3]:
         st.caption(f"Data note: {warning}")
@@ -956,9 +961,16 @@ with main_column:
                                 current_kpis[key]["value"],
                                 rule,
                             )
+                            if current_kpis[key].get("estimated"):
+                                remark = f"Estimated (prorated by net-sales share). {remark}"
                             render_gauge_remark(status, remark)
 
         st.subheader("Store Scorecards and Rankings")
+        if hierarchy_filtered:
+            st.caption(
+                "Net/gross sales are exact; achievement/footfall/NOB/ATV/RPV/basket size "
+                "are estimated (prorated by this selection's net-sales share)."
+            )
         if scorecard_table.empty:
             st.info("No comparable store data.")
         else:
@@ -1026,13 +1038,13 @@ with main_column:
                 "filtered_daily_sales.csv",
             )
         elif sales_graph == "Target Achievement by Month":
-            target_source = (
-                filtered_daily
-                if not hierarchy_filtered
-                else filtered_daily.iloc[0:0]
-            )
+            if hierarchy_filtered:
+                st.caption(
+                    "Target is estimated: prorated from each store-day's SALE_TARGET "
+                    "by this selection's share of that day's net sales."
+                )
             target_figure, target_table = target_achievement(
-                target_source,
+                estimated_daily,
                 data.kpi_color_rules.get("achievement"),
             )
             chart_table_download(
@@ -1093,11 +1105,12 @@ with main_column:
 
     with tabs[2]:
         st.subheader("Footfall vs NoB")
-        customer_source = (
-            filtered_daily
-            if not hierarchy_filtered
-            else filtered_daily.iloc[0:0]
-        )
+        customer_source = estimated_daily
+        if hierarchy_filtered:
+            st.caption(
+                "Footfall and NoB are estimated: prorated from each store-day's totals "
+                "by this selection's share of that day's net sales."
+            )
         foot_figure, foot_table = footfall_bills_chart(customer_source)
         conversion_figure, conversion_table = conversion_percentage_chart(
             customer_source,

@@ -58,6 +58,51 @@ def _distinct_or_sum_transactions(frame: pd.DataFrame) -> tuple[float | None, st
     return value, "pre-aggregated NOB" if value is not None else "unavailable"
 
 
+def prorate_daily_by_hierarchy_share(
+    daily: pd.DataFrame, detail: pd.DataFrame
+) -> pd.DataFrame:
+    """Allocate store-day operational totals to a hierarchy-filtered slice.
+
+    Store-day measures (footfall, NOB, target, quantity) are never captured per
+    division/section/department, so there is no exact value to report once a
+    hierarchy filter is active. Each store-day's totals are instead split in
+    proportion to that day's share of net sales held by the filtered slice —
+    the only attribution basis the source workbook supports. `net_sales` and
+    `gross_sales` on the result are replaced with the exact filtered detail
+    total (not estimated); every other operational column is an estimate.
+    Callers must treat the result as an estimate, not a measured value.
+    """
+    required = {"store_code", "date", "net_sales"}
+    if daily.empty or detail.empty or not required.issubset(daily.columns) or "net_sales" not in detail:
+        return pd.DataFrame()
+    detail_aggregations = {"net_sales": "sum"}
+    if "gross_sales" in detail:
+        detail_aggregations["gross_sales"] = "sum"
+    detail_by_day = (
+        detail.groupby(["store_code", "date"], as_index=False).agg(detail_aggregations)
+        .rename(
+            columns={
+                "net_sales": "filtered_net_sales",
+                "gross_sales": "filtered_gross_sales",
+            }
+        )
+    )
+    merged = daily.merge(detail_by_day, on=["store_code", "date"], how="inner")
+    if merged.empty:
+        return merged
+    share = (merged["filtered_net_sales"] / merged["net_sales"].replace(0, np.nan)).clip(
+        lower=0, upper=1
+    )
+    for column in ("footfall", "nob", "target", "quantity"):
+        if column in merged:
+            merged[column] = merged[column] * share
+    merged = merged.dropna(subset=["filtered_net_sales"])
+    merged["net_sales"] = merged["filtered_net_sales"]
+    if "filtered_gross_sales" in merged:
+        merged["gross_sales"] = merged["filtered_gross_sales"]
+    return merged
+
+
 def calculate_kpis(
     daily: pd.DataFrame,
     detail: pd.DataFrame | None = None,
@@ -69,9 +114,18 @@ def calculate_kpis(
     sales_fact = detail if hierarchy_filtered else daily
     net_sales = _sum_if_available(sales_fact, "net_sales")
     gross_sales = _sum_if_available(sales_fact, "gross_sales")
+    prorated = (
+        prorate_daily_by_hierarchy_share(daily, detail) if hierarchy_filtered else pd.DataFrame()
+    )
     # KPI quantity is store-day SUM_OF_BILL_QUANTITY only. Detail
-    # BILL_QUANTITY contains returns and is not a KPI fallback.
-    quantity = None if hierarchy_filtered else _sum_if_available(daily, "quantity")
+    # BILL_QUANTITY contains returns and is not a KPI fallback. Under a
+    # hierarchy filter it is estimated by prorating each store-day's total by
+    # this selection's share of that day's net sales.
+    quantity = (
+        _sum_if_available(prorated, "quantity")
+        if hierarchy_filtered
+        else _sum_if_available(daily, "quantity")
+    )
     discount = None
     gross_source = "workbook gross amount"
     if (
@@ -88,9 +142,42 @@ def calculate_kpis(
         discount = gross_sales - net_sales
 
     if hierarchy_filtered:
-        footfall = transactions = target = None
-        transaction_source = "not attributable to hierarchy"
-        atv = rpv = basket = conversion = achievement = None
+        if prorated.empty:
+            footfall = transactions = target = None
+            atv = rpv = basket = conversion = achievement = None
+            transaction_source = "not attributable to hierarchy: no comparable store-day totals"
+        else:
+            nob_mask = (
+                prorated["nob"].notna() & prorated["nob"].gt(0)
+                if "nob" in prorated
+                else pd.Series(False, index=prorated.index)
+            )
+            footfall_mask = (
+                prorated["footfall"].notna() & prorated["footfall"].gt(0)
+                if "footfall" in prorated
+                else pd.Series(False, index=prorated.index)
+            )
+            conversion_mask = nob_mask & footfall_mask
+            target_mask = (
+                prorated["target"].notna() & prorated["target"].gt(0)
+                if "target" in prorated
+                else pd.Series(False, index=prorated.index)
+            )
+            transactions = _sum_if_available(prorated.loc[nob_mask], "nob")
+            footfall = _sum_if_available(prorated.loc[footfall_mask], "footfall")
+            target = _sum_if_available(prorated.loc[target_mask], "target")
+            # The numerator is the exact filtered net sales; only the
+            # denominator (footfall/NOB/target) is a prorated estimate.
+            atv = safe_divide(net_sales, transactions)
+            rpv = safe_divide(net_sales, footfall)
+            basket = safe_divide(quantity, transactions)
+            conversion_transactions = _sum_if_available(prorated.loc[conversion_mask], "nob")
+            conversion = safe_divide(
+                conversion_transactions,
+                _sum_if_available(prorated.loc[conversion_mask], "footfall"),
+            )
+            achievement = safe_divide(net_sales, target)
+            transaction_source = "estimated: store-day NOB prorated by net-sales share"
     else:
         has_transaction_ids = (
             "transaction_id" in daily and daily["transaction_id"].notna().any()
@@ -149,7 +236,8 @@ def calculate_kpis(
     discount_pct = safe_divide(discount, gross_sales)
 
     reason = (
-        "N/A — store-day footfall and bills cannot be attributed to division/section/department"
+        "N/A — no comparable store-day totals available to estimate this KPI "
+        "for the selected division/section/department scope"
         if hierarchy_filtered
         else "N/A — Required source field not available"
     )
@@ -160,12 +248,14 @@ def calculate_kpis(
         key: str,
         value: float | None,
         source: str,
+        estimated: bool = False,
     ) -> dict[str, Any]:
         rule = active_rules.get(key)
         return {
             "value": value,
             "available": value is not None,
             "source": source,
+            "estimated": estimated and value is not None,
             "status": status_for(key, value, active_rules),
             "color_rule": (
                 rule.description
@@ -175,6 +265,9 @@ def calculate_kpis(
             "message": None if value is not None else reason,
         }
 
+    # Footfall/NOB/ATV/RPV/basket/conversion/achievement/target/quantity have
+    # no exact source under a hierarchy filter — see _prorated_daily_totals.
+    est = hierarchy_filtered
     results = {
         "net_sales": item(
             "net_sales",
@@ -182,25 +275,69 @@ def calculate_kpis(
             "daily summary" if not hierarchy_filtered else "detail fact",
         ),
         "gross_sales": item("gross_sales", gross_sales, gross_source),
-        "footfall": item("footfall", footfall, "store-day footfall"),
-        "transactions": item("transactions", transactions, transaction_source),
-        "atv": item("atv", atv, "net sales / NOB"),
-        "rpv": item("rpv", rpv, "net sales / footfall"),
-        "basket_size": item(
-            "basket_size", basket, "SUM_OF_BILL_QUANTITY / NOB"
+        "footfall": item(
+            "footfall",
+            footfall,
+            "estimated: store-day footfall prorated by net-sales share"
+            if est
+            else "store-day footfall",
+            estimated=est,
         ),
-        "conversion": item("conversion", conversion, "NOB / footfall"),
+        "transactions": item(
+            "transactions", transactions, transaction_source, estimated=est
+        ),
+        "atv": item(
+            "atv",
+            atv,
+            "estimated: net sales ÷ prorated NOB" if est else "net sales / NOB",
+            estimated=est,
+        ),
+        "rpv": item(
+            "rpv",
+            rpv,
+            "estimated: net sales ÷ prorated footfall" if est else "net sales / footfall",
+            estimated=est,
+        ),
+        "basket_size": item(
+            "basket_size",
+            basket,
+            "estimated: prorated SUM_OF_BILL_QUANTITY ÷ prorated NOB"
+            if est
+            else "SUM_OF_BILL_QUANTITY / NOB",
+            estimated=est,
+        ),
+        "conversion": item(
+            "conversion",
+            conversion,
+            "estimated: prorated NOB ÷ prorated footfall" if est else "NOB / footfall",
+            estimated=est,
+        ),
         "achievement": item(
-            "achievement", achievement, "net sales / CitiMart target"
+            "achievement",
+            achievement,
+            "estimated: net sales ÷ prorated target" if est else "net sales / CitiMart target",
+            estimated=est,
         ),
         "discount": item("discount", discount, "gross sales - net sales"),
         "discount_pct": item(
             "discount_pct", discount_pct, "discount / gross sales"
         ),
         "quantity": item(
-            "quantity", quantity, "store-day SUM_OF_BILL_QUANTITY"
+            "quantity",
+            quantity,
+            "estimated: store-day SUM_OF_BILL_QUANTITY prorated by net-sales share"
+            if est
+            else "store-day SUM_OF_BILL_QUANTITY",
+            estimated=est,
         ),
-        "target": item("target", target, "CitiMart manual SALE_TARGET"),
+        "target": item(
+            "target",
+            target,
+            "estimated: store-day SALE_TARGET prorated by net-sales share"
+            if est
+            else "CitiMart manual SALE_TARGET",
+            estimated=est,
+        ),
     }
     for key, payload in results.items():
         payload["formula"] = KPI_FORMULAS[key]

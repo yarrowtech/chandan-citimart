@@ -64,7 +64,12 @@ variance, warnings, and KPI availability.
 ├── salesdata.xlsx
 ├── requirements.txt
 ├── requirement.txt
+├── .streamlit/
+│   └── config.toml
+├── assets/
+├── reports/                  # PDF export scratch space (git-ignored)
 ├── config/
+│   ├── __init__.py
 │   ├── settings.py
 │   ├── column_aliases.py
 │   └── kpi_thresholds.py
@@ -76,12 +81,21 @@ variance, warnings, and KPI availability.
 │   ├── kpi_engine.py
 │   ├── comparison_engine.py
 │   ├── forecasting.py
+│   ├── forecast_input.py
+│   ├── color_rules.py
 │   ├── charts.py
 │   ├── tables.py
 │   ├── formatting.py
 │   ├── pdf_report.py
 │   └── ui_components.py
 └── tests/
+    ├── conftest.py
+    ├── test_data_loader.py
+    ├── test_filters.py
+    ├── test_forecast_input.py
+    ├── test_forecasting.py
+    ├── test_kpi_engine.py
+    └── test_pdf_report.py
 ```
 
 ## Prerequisites and installation
@@ -111,13 +125,20 @@ renamed or modified.
 The default view includes every available store and the entire workbook date range.
 When all divisions, sections, and departments are selected, store-day summary sales drive
 headline KPIs. Quantity is sourced exclusively from `SUM_OF_BILL_QUANTITY` in the
-store-day summary sheets. When a division, section, or department subset is active, sales come
-from the detail fact, while quantity, footfall, NOB, conversion, ATV, basket size,
-and target achievement are hidden because those store-day measures cannot be
-attributed safely to hierarchy rows.
+store-day summary sheets. When a division, section, or department subset is active, sales
+come from the detail fact and stay exact.
+
+Footfall, NOB, target, and units are never captured per division/section/department in
+this workbook, so under a hierarchy filter they are **estimated**: each store-day's total
+is prorated by that day's share of net sales held by the filtered selection
+(`src/kpi_engine.py:prorate_daily_by_hierarchy_share`). ATV, RPV, basket size, conversion,
+and target achievement are then recomputed from the exact filtered net sales divided by
+that estimate. Every estimated card, gauge, table row, and PDF line is labelled
+"Estimated"; net sales, gross sales, and discount stay exact throughout.
 
 The selected division also controls net/gross sales charts, monthly and daily
-sales trends, same-period comparisons, store sales scorecards, and forecasting.
+sales trends, same-period comparisons, store sales scorecards, footfall/NoB and
+conversion charts, target achievement, and forecasting.
 The Sales Performance tab includes a ranked division table with net sales, gross
 sales, discount, detail quantity, sales days, average daily sales, share, and rank.
 
@@ -205,8 +226,10 @@ Manual worksheet renaming is not required.
 
 - **Workbook not found:** place `salesdata.xlsx` beside `app.py`.
 - **A KPI is not shown:** inspect Data Quality → KPI Availability and Detected Schemas.
-- **Charts differ under hierarchy filters:** the current workbook's January detail is
-  incomplete and operational measures cannot be attributed to hierarchy rows.
+- **Charts show "Estimated" under hierarchy filters:** the current workbook has no
+  footfall/NOB/target broken out by division/section/department, so those measures are
+  prorated by the filtered selection's net-sales share instead of measured directly. Net
+  sales, gross sales, and discount are always exact.
 - **PDF chart image omitted:** reinstall compatible Plotly/Kaleido versions with
   `pip install -r requirements.txt`; table content is still included.
 - **Forecast not trained:** widen the date filter. Daily forecasting requires at
@@ -221,7 +244,17 @@ Manual worksheet renaming is not required.
 
 The current source lacks transaction IDs, product/SKU/brand/category,
 COGS, time-of-day, and promotion flags. Consequently, profit KPIs, product and
-brand rankings, promotion causality, time filters, and true hierarchy-level
-transaction KPIs are intentionally omitted until those fields are added.
+brand rankings, promotion causality, and time filters are intentionally omitted
+until those fields are added.
 Exact duplicate-looking detail rows are reported but not dropped because, without a
 transaction/SKU key, identical purchases may be legitimate.
+
+Footfall, NOB, target, and units also have no true per-division/section/department
+source in this workbook. Under a hierarchy filter, `src/kpi_engine.py` estimates
+them by prorating each store-day's total by the filtered selection's share of that
+day's net sales, and labels every such value "Estimated" wherever it is shown (cards,
+gauges, tables, charts, PDF). These figures are a sales-weighted approximation, not a
+measured count — treat them accordingly for decisions that need exact bill- or
+footfall-level accuracy. Getting exact values would require the POS export to include
+a bill/transaction ID and per-division footfall capture, which the source workbook
+does not currently provide.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from src.charts import gauge
 from src.kpi_engine import calculate_kpis, kpi_table, safe_divide
@@ -143,12 +144,74 @@ def test_distinct_transaction_count_preferred() -> None:
     assert kpis["atv"]["value"] == 175
 
 
-def test_hierarchy_filter_disables_unattributable_customer_kpis(
+def test_hierarchy_filter_estimates_unattributable_customer_kpis(
     daily_fact, detail_fact
 ) -> None:
+    """Footfall/NOB/target have no exact per-division source, so a hierarchy
+    filter prorates each store-day's total by this selection's net-sales
+    share (see kpi_engine.prorate_daily_by_hierarchy_share) instead of
+    reporting N/A.
+
+    Expected shares from the fixtures: NW/2026-01-01 is 400/1000 = 0.4,
+    NW/2026-01-02 is 1500/1500 = 1.0, CHW/2026-01-03 is 800/800 = 1.0.
+    """
     food = detail_fact[detail_fact["section"] == "Food"]
     kpis = calculate_kpis(daily_fact, food, hierarchy_filtered=True)
     assert kpis["net_sales"]["value"] == 2700
-    assert kpis["quantity"]["value"] is None
+    assert kpis["net_sales"]["estimated"] is False
+
+    expected_footfall = 20 * 0.4 + 25 * 1.0 + 16 * 1.0
+    expected_transactions = 8 * 0.4 + 10 * 1.0 + 6 * 1.0
+    expected_target = 1200 * 0.4 + 1400 * 1.0 + 900 * 1.0
+    expected_quantity = 10 * 0.4 + 12 * 1.0 + 8 * 1.0
+
+    assert kpis["footfall"]["value"] == pytest.approx(expected_footfall)
+    assert kpis["transactions"]["value"] == pytest.approx(expected_transactions)
+    assert kpis["target"]["value"] == pytest.approx(expected_target)
+    assert kpis["quantity"]["value"] == pytest.approx(expected_quantity)
+    assert kpis["atv"]["value"] == pytest.approx(2700 / expected_transactions)
+    assert kpis["rpv"]["value"] == pytest.approx(2700 / expected_footfall)
+    assert kpis["basket_size"]["value"] == pytest.approx(
+        expected_quantity / expected_transactions
+    )
+    assert kpis["conversion"]["value"] == pytest.approx(
+        expected_transactions / expected_footfall
+    )
+    assert kpis["achievement"]["value"] == pytest.approx(2700 / expected_target)
+
+    for key in (
+        "footfall",
+        "transactions",
+        "target",
+        "quantity",
+        "atv",
+        "rpv",
+        "basket_size",
+        "conversion",
+        "achievement",
+    ):
+        assert kpis[key]["estimated"] is True
+        assert "estimated" in kpis[key]["source"].casefold()
+
+
+def test_hierarchy_filter_reports_na_without_comparable_store_days() -> None:
+    daily = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-02-01"]),
+            "store_code": ["NW"],
+            "net_sales": [500.0],
+            "footfall": [10.0],
+            "nob": [4.0],
+        }
+    )
+    detail = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-01"]),
+            "store_code": ["NW"],
+            "net_sales": [200.0],
+        }
+    )
+    kpis = calculate_kpis(daily, detail, hierarchy_filtered=True)
+    assert kpis["net_sales"]["value"] == 200
     assert kpis["footfall"]["value"] is None
-    assert kpis["conversion"]["value"] is None
+    assert kpis["footfall"]["message"] is not None
