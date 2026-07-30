@@ -8,5 +8,5 @@ reports/*.png
 *.log
 .DS_Store
 CITIMART SALES KPI.code-workspace
-requirment.txt
+requirement.txt
 .claude
