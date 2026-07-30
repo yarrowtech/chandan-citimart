@@ -10,3 +10,4 @@ reports/*.png
 CITIMART SALES KPI.code-workspace
 requirement.txt
 .claude
+.gitignore
